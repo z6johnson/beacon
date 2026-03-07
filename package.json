@@ -1,0 +1,25 @@
+{
+  "name": "beacon",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Pre-workshop briefing service — pulls intelligence from FogBell, synthesizes briefings via LiteLLM, delivers to Notion",
+  "type": "module",
+  "scripts": {
+    "build": "tsc",
+    "dev": "vercel dev",
+    "lint": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@notionhq/client": "^2.2.15",
+    "@vercel/node": "^5.0.0",
+    "openai": "^4.77.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "typescript": "^5.7.0",
+    "vercel": "^39.0.0"
+  },
+  "engines": {
+    "node": ">=20.0.0"
+  }
+}
