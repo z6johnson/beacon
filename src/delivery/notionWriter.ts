@@ -136,6 +136,25 @@ export async function appendBriefing(
   logger.info("Briefing appended to Notion page", { pageId, date: today });
 }
 
+export async function findPendingBriefings(
+  notion: Client,
+  databaseId: string
+): Promise<string[]> {
+  logger.info("Querying for pending briefings", { databaseId });
+
+  const response = await notion.databases.query({
+    database_id: databaseId,
+    filter: {
+      property: "Generate Briefing",
+      checkbox: { equals: true },
+    },
+  });
+
+  const pageIds = response.results.map((page) => page.id);
+  logger.info("Found pending briefings", { count: pageIds.length });
+  return pageIds;
+}
+
 export async function resetTrigger(
   notion: Client,
   pageId: string,

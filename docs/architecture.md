@@ -56,7 +56,7 @@ A coordinated set of lightweight services that power Zach's workshop preparation
 
 3. **LiteLLM as the single LLM gateway.** All AI-powered components route through one proxy. Centralizes key management, model routing, usage tracking, and cost control.
 
-4. **Webhook-driven, not polling.** Services respond to events (a checkbox checked, a status changed) rather than scanning for changes on a loop.
+4. **Event-driven where possible.** Services respond to events when the infrastructure is available. Where event infrastructure requires paid tiers (e.g. Notion webhook automations), use polling with idempotency instead.
 
 5. **Independently deployable.** No shared databases, no monorepo coupling. Services communicate through APIs and webhooks. Any one can be replaced or rebuilt without affecting others.
 
@@ -66,23 +66,31 @@ A coordinated set of lightweight services that power Zach's workshop preparation
 
 Beacon is the first service built in this system. It establishes the integration pattern for everything that follows.
 
-**Trigger:** User checks "Generate Briefing" checkbox on a Notion workshop page. Notion automation POSTs to beacon's webhook endpoint.
+**Trigger:** User checks "Generate Briefing" checkbox on a Notion workshop page, then triggers the poll endpoint (via curl, browser bookmark, or iOS Shortcut). The poll queries the database for checked pages and processes each one.
 
 ```
-Notion checkbox ──POST──▶ /api/briefing/generate
+User checks box in Notion
+        │
+        ▼
+curl/bookmark ──GET──▶ /api/briefing/poll
                               │
-                    Read workshop context from Notion page
+                    Query database for checked pages
                               │
-                    Fetch signals + storylines from FogBell
+                    For each page:
+                      Read workshop context from Notion page
                               │
-                    Filter signals for relevance (keyword → LLM scoring)
+                      Fetch signals + storylines from FogBell
                               │
-                    Generate structured briefing via LiteLLM
+                      Filter signals for relevance (keyword → LLM scoring)
                               │
-                    Append briefing callout to Notion page
+                      Generate structured briefing via LiteLLM
                               │
-                    Reset trigger checkbox
+                      Append briefing callout to Notion page
+                              │
+                      Reset trigger checkbox
 ```
+
+The direct webhook endpoint (`POST /api/briefing/generate`) is also available for users on Notion paid plans who can use database automations with "Send webhook" actions.
 
 **Briefing structure:**
 - **Key Signals** — what happened and why it matters for this workshop

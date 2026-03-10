@@ -21,6 +21,7 @@ export function getConfig() {
     },
     notion: {
       token: required("NOTION_TOKEN"),
+      databaseId: required("NOTION_DATABASE_ID"),
     },
   };
 }

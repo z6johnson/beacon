@@ -97,9 +97,11 @@ async function main() {
 
   console.log("--- Setup Complete ---\n");
   console.log("Next steps:");
-  console.log("1. Open the database in Notion and verify the properties");
-  console.log("2. Set up the automation (see docs/notion-automation-setup.md)");
-  console.log("3. Check the 'Generate Briefing' box on a workshop to trigger beacon");
+  console.log(`1. Set NOTION_DATABASE_ID=${database.id} in your Vercel env vars`);
+  console.log("2. Open the database in Notion and verify the properties");
+  console.log("3. Check the 'Generate Briefing' box on a workshop, then trigger via:");
+  console.log(`   curl -H "x-webhook-secret: YOUR_SECRET" https://your-beacon-url.vercel.app/api/briefing/poll`);
+  console.log("   (See docs/notion-automation-setup.md for more trigger options)");
 }
 
 main().catch((err) => {
