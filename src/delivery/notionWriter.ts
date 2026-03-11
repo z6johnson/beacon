@@ -85,55 +85,78 @@ function markdownToNotionBlocks(markdown: string): any[] {
   return blocks;
 }
 
+export function splitBriefingSections(
+  markdown: string
+): Array<{ title: string; body: string }> {
+  const sections: Array<{ title: string; body: string }> = [];
+  const parts = markdown.split(/^## /m);
+
+  for (const part of parts) {
+    const trimmed = part.trim();
+    if (!trimmed) continue;
+
+    const newlineIdx = trimmed.indexOf("\n");
+    if (newlineIdx === -1) {
+      sections.push({ title: trimmed, body: "" });
+    } else {
+      sections.push({
+        title: trimmed.slice(0, newlineIdx).trim(),
+        body: trimmed.slice(newlineIdx + 1).trim(),
+      });
+    }
+  }
+
+  return sections;
+}
+
 export async function appendBriefing(
   notion: Client,
   pageId: string,
-  briefingMarkdown: string
+  briefingMarkdown: string,
+  prefix: string = "Beacon"
 ): Promise<void> {
   const today = new Date().toISOString().split("T")[0];
+  const tagPrefix = `${prefix} ${today}`;
 
   // Check for existing briefing today (idempotency)
   const existing = await notion.blocks.children.list({ block_id: pageId });
   const alreadyBriefed = existing.results.some((block) => {
-    if ("type" in block && block.type === "callout" && "callout" in block) {
-      const text = block.callout.rich_text
-        .map((t) => ("plain_text" in t ? t.plain_text : ""))
-        .join("");
-      return text.includes(`Beacon Briefing — ${today}`);
+    if ("type" in block && block.type === "child_page") {
+      return block.child_page.title.startsWith(tagPrefix);
     }
     return false;
   });
 
   if (alreadyBriefed) {
-    logger.info("Briefing already exists for today, skipping", { pageId, date: today });
+    logger.info("Briefing already exists for today, skipping", { pageId, prefix, date: today });
     return;
   }
 
-  // Build callout block with briefing content as children
-  const contentBlocks = markdownToNotionBlocks(briefingMarkdown);
+  // Split markdown into sections and create a child page per section
+  const sections = splitBriefingSections(briefingMarkdown);
 
-  const calloutBlock = {
-    object: "block" as const,
-    type: "callout" as const,
-    callout: {
-      rich_text: [
-        {
-          type: "text" as const,
-          text: { content: `Beacon Briefing — ${today}` },
-          annotations: { bold: true },
-        },
-      ],
-      icon: { type: "emoji" as const, emoji: "📡" as const },
-      children: contentBlocks,
-    },
-  };
+  for (const section of sections) {
+    const pageTitle = `${tagPrefix} — ${section.title}`;
 
-  await notion.blocks.children.append({
-    block_id: pageId,
-    children: [calloutBlock],
-  });
+    const newPage = await notion.pages.create({
+      parent: { page_id: pageId },
+      properties: {
+        title: [{ text: { content: pageTitle } }],
+      },
+    });
 
-  logger.info("Briefing appended to Notion page", { pageId, date: today });
+    if (section.body) {
+      const contentBlocks = markdownToNotionBlocks(section.body);
+      await notion.blocks.children.append({
+        block_id: newPage.id,
+        children: contentBlocks,
+      });
+    }
+
+    logger.info("Created briefing child page", { pageTitle, parentPageId: pageId });
+  }
+
+  logger.info("Briefing appended to Notion page", { pageId, prefix, date: today, sectionCount: sections.length });
 }
 
 export async function findPendingBriefings(

@@ -5,12 +5,15 @@ import { createNotionClient } from "../lib/notion.js";
 import { readWorkshopContext, appendBriefing, resetTrigger } from "../delivery/notionWriter.js";
 import { filterSignalsByRelevance } from "./relevanceFilter.js";
 import { generateBriefing } from "./briefingGenerator.js";
+import { generateBrandBriefing } from "./brandBriefingGenerator.js";
+import { searchBrandMentions } from "../sources/webSearch.js";
 import { logger } from "../lib/logger.js";
 
 export interface ProcessResult {
   pageId: string;
   topic: string;
   signalsUsed: number;
+  brandMentions: number;
   skipped: boolean;
 }
 
@@ -50,12 +53,29 @@ export async function processBriefingForPage(
     config.litellm.model
   );
 
-  // 5. Deliver to Notion
+  // 5. Deliver topic briefing to Notion
   await appendBriefing(notion, pageId, briefingMarkdown);
 
-  // 6. Reset trigger
+  // 6. Brand monitoring (if Brave API key is configured)
+  let brandMentionCount = 0;
+  if (config.braveApiKey) {
+    try {
+      const mentions = await searchBrandMentions(config.braveApiKey);
+      brandMentionCount = mentions.length;
+      if (mentions.length > 0) {
+        const brandBriefing = await generateBrandBriefing(mentions, llm, config.litellm.model);
+        await appendBriefing(notion, pageId, brandBriefing, "Brand Watch");
+      } else {
+        logger.info("No brand mentions found, skipping brand briefing");
+      }
+    } catch (err) {
+      logger.error("Brand monitoring failed, continuing without it", { error: String(err) });
+    }
+  }
+
+  // 7. Reset trigger
   await resetTrigger(notion, pageId);
 
-  logger.info("Briefing generation complete", { pageId, topic });
-  return { pageId, topic, signalsUsed: relevantSignals.length, skipped: false };
+  logger.info("Briefing generation complete", { pageId, topic, brandMentionCount });
+  return { pageId, topic, signalsUsed: relevantSignals.length, brandMentions: brandMentionCount, skipped: false };
 }

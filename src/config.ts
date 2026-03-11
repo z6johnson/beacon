@@ -23,6 +23,7 @@ export function getConfig() {
       token: required("NOTION_TOKEN"),
       databaseId: required("NOTION_DATABASE_ID"),
     },
+    braveApiKey: process.env.BRAVE_API_KEY || "",
   };
 }
 

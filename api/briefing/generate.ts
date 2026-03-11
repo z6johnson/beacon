@@ -32,7 +32,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   try {
     const result = await processBriefingForPage(pageId, config);
-    return res.status(200).json({ success: true, topic: result.topic, signalsUsed: result.signalsUsed });
+    return res.status(200).json({ success: true, topic: result.topic, signalsUsed: result.signalsUsed, brandMentions: result.brandMentions });
   } catch (err) {
     logger.error("Briefing generation failed", { pageId, error: String(err) });
     return res.status(500).json({ error: "Briefing generation failed" });
